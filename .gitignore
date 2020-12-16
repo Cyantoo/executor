@@ -3,3 +3,5 @@ src/test/bin/exp.config
 src/test/resources/config.properties
 .idea/
 target/
+.*
+!.gitignore
