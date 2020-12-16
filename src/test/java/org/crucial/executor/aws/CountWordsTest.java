@@ -39,16 +39,17 @@ public class CountWordsTest {
         
 
         @SuppressWarnings("unchecked")
-        Future<Integer> future = es.submit((Serializable & Callable<Integer>) (Document document) -> { 
-                return( (Integer) countWords(word, document));
+        Future<Integer> future = es.submit((Serializable & Callable<Integer>) () -> {
+            Integer count = (Integer) countWords(word, document);
+            return(count );
         });
         Integer toPrint = future.get();
         System.out.println(toPrint.toString());
-        assert toPrint == countWords(word, content);
+        assert toPrint == countWords(word, document);
     }
     
-
-    /@Test
+    
+    @Test
     public void testCountWordsParallel() throws InterruptedException, ExecutionException{
         ServerlessExecutorService es = new AWSLambdaExecutorService();
         es.setLocal(false);
@@ -71,14 +72,9 @@ public class CountWordsTest {
         List<Callable<Integer>> myTasks = Collections.synchronizedList(new ArrayList<>()); //peut-être à changer pour utiliser invokeAll
         IntStream.range(0, nThreads).forEach( j ->
             myTasks.add((Serializable & Callable<Integer>) () -> {
-            Integer counter = 0;
             String part = document.substring(bornes_inf[j], bornes_sup[j]);
-            String[] words = part.split("[ .,?!]+"); 
-            for(int i = 0; i < words.length; i++)
-            {
-                if(word.equals(words[i])) counter++ ;
-            }
-            return(counter);
+            Integer count = (Integer) countWords(word, part);
+            return(count);
             }));
         Integer sum = 0;
 
@@ -90,6 +86,8 @@ public class CountWordsTest {
         System.out.println(sum.toString());
         assert sum == countWords(word, document);
     }
+    
+    
     
 
 
@@ -107,7 +105,7 @@ public class CountWordsTest {
     }
 
     // Essayer à part
-    String getURLContent(String urlToRead)
+    static String getURLContent(String urlToRead)
     {
         // source : https://stackoverflow.com/questions/11087163/how-to-get-url-html-contents-to-string-in-java
         String document = "";
