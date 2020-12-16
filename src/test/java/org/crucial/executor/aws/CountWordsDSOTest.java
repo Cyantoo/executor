@@ -22,18 +22,27 @@ import java.net.URL;
 import java.net.URLConnection;
 
 // for interfacing with DSO
-import org.crucial.dso.AtomicInteger;
+import org.crucial.dso.AtomicLong;
 import org.crucial.dso.client.Client;
 
 @SuppressWarnings("all")
 public class CountWordsDSOTest {
-
-
     @Test
-    public void testCountWordsDSO() throws InterruptedException, ExecutionException{
+    public void testCountWordsDSOLocalThreads() throws InterruptedException, ExecutionException{
         ServerlessExecutorService es = new AWSLambdaExecutorService();
         es.setLocal(true);
+        testCountWordsDSO(es);
+    }
 
+    @Test
+    public void testCountWordsDSOLambdaThreads() throws InterruptedException, ExecutionException{
+        ServerlessExecutorService es = new AWSLambdaExecutorService();
+        es.setLocal(false);
+        testCountWordsDSO(es);
+    }
+
+    void testCountWordsDSO(ServerlessExecutorService es)throws InterruptedException, ExecutionException
+    {
         final String document = getURLContent("https://en.wikipedia.org/wiki/C_(programming_language)");
         final String word = "language";
 
@@ -50,46 +59,34 @@ public class CountWordsDSOTest {
         }
 
         long id = System.nanoTime();
-        String server = "35.221.41.87:11222";
+        String server = "34.86.105.30:11222"; // This is the line to change with the right IP
 
-        // Factory factory = Factory.get( server, id);
         Client client = Client.getClient(server, id);
         
-        AtomicInteger counter = client.getAtomicInt("counter"); // This doesn't work with ("counter", 0) as argument
-        // org.infinispan.commons.CacheException: class org.crucial.dso.AtomicInteger no constructor with [counter, 0] -> like it tries to run it locally after being marshalled?
+        AtomicLong counter = client.getAtomicLong("counter"); // This doesn't work with ("counter", 0) as argument
+        counter.set(0);
 
         List<Callable<Integer>> myTasks = Collections.synchronizedList(new ArrayList<>()); 
 
         IntStream.range(0, nThreads).forEach( j ->
             myTasks.add((Serializable & Callable<Integer>) () -> {
             String part = document.substring(bornes_inf[j], bornes_sup[j]);
-            int count = 0;
-            String[] words = part.split("[ .,?!]+"); 
-            for(int i = 0; i < words.length; i++)
-            {
-                if(word.equals(words[i])) counter.getAndIncrement() ;
-            }
+            Long count = (Long) countWords(word, part);
+            counter.addAndGet(count);
             return(1);
             }));
         List<Future<Integer>> futures = es.invokeAll(myTasks);
-        for (Future<Integer> future : futures){
-            try{
-                System.out.println(future.get());
-            }
-            catch(InterruptedException e){
-                e.printStackTrace();
-            }
-            
+        for (Future<Integer> future : futures){ 
+            future.get();   
         }
-        Integer sum = (Integer) counter.get();
+        Long sum = (Long) counter.get();
         System.out.println(sum.toString());
-        assert sum == count_words(word, document);
-
+        assert sum == countWords(word, document);
     }
 
-    int count_words(String word, String content)
+    static long countWords(String word, String content)
     {
-        int counter = 0;
+        long counter = 0;
         String[] words = content.split("[ .,?!]+"); // on peut utiliser la regex "[ .,?!]+" si besoin de regex
         for(int i = 0; i < words.length; i++)
         {
