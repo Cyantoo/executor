@@ -53,6 +53,18 @@
             <scope>test</scope>
         </dependency>
 
+        <!-- For interface with DSO -->
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>dso-client</artifactId>
+            <version>2.0</version>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>dso-core</artifactId>
+            <version>2.0</version>
+        </dependency>
+
     </dependencies>
 
     <build>
@@ -100,4 +112,3 @@
     </build>
 
 </project>
-    
